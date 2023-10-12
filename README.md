@@ -11,21 +11,19 @@ Manipulador 1
 2) Definir sistemas de referencia en cada uno de los puntos
     SRi : 
          - Sistema destrogiro. pulgar z, indice x, y medio. 
-          - ArtRot -> eje X coincide con eje de giro. X e Y destroido.
+          - ArtRot -> eje Z coincide con eje de giro. X e Y destroido.
           - ArtPris -> SRi == SRi-1
           - Xi-1 Perpendicular a Zi-1
           - Xi Perpendicular Zi-1
 
 3) Aplicare tabla de D-H
 
-       1    |   2
-
-------------|-------- 
-
-   d   0    |  0   
-   θ   +θ1  |   +θ2 
-   a   +10  |   +5  
-   α   0    |   0   
+        1      2
+--------------------        
+   d   0      0   
+   θ   +θ1    +θ2 
+   a   +10    +5  
+   α   0      0   
 
 
 A la hora de establecer Theta siempre mirar como estan orientadas las articulaciones en reposo. es decir al limite minimo digamos. 
@@ -60,7 +58,7 @@ Matrices T
 Manipulador 3
 
        1       2        3       4       5.1     5.2 
--------------------------- 
+---------------------------------------------------
    d   
    θ   
    a   
