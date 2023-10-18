@@ -103,7 +103,7 @@ p=[float(i) for i in sys.argv[1:nvar+2]] #Almacena valor articulaciones
 d  = [   5,     0,     0]  
 th = [p[0],     0,  p[2]]
 a  = [   0,   p[1],    2]
-al = [   0,     90,     0]
+al = [   0,     90,    0]
 
 # Orígenes para cada articulación
 o00=[0,0,0,1]
