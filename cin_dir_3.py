@@ -93,17 +93,17 @@ def matriz_T(d,theta,a,alpha):
 
 
 # Introducción de los valores de las articulaciones
-nvar=2 # Número de variables
-if len(sys.argv) != nvar+2:
+nvar=4 # Número de variables
+if len(sys.argv) != nvar+1:
   sys.exit('El número de articulaciones no es el correcto ('+str(nvar)+')')
-p=[float(i) for i in sys.argv[1:nvar+2]] #Almacena valor articulaciones 
+p=[float(i) for i in sys.argv[1:nvar+1]] #Almacena valor articulaciones 
 
 # Parámetros D-H:
-#        1      2      3
-d  = [   5,     0,     0]  
-th = [p[0],     0,  p[2]]
-a  = [   0,   p[1],    2]
-al = [   0,     0,     0]
+#        1      2     3        4
+d  = [p[0],     0,    p[2],    0]  
+th = [   0,  p[1],     90, p[3]]
+a  = [   0,     5,   0,    0]
+al = [   0,     0,     0,   90]
 
 # Orígenes para cada articulación
 o00=[0,0,0,1]

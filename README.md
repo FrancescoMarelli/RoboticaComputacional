@@ -10,12 +10,11 @@ Manipulador 1
 
 2) Definir sistemas de referencia en cada uno de los puntos
     SRi : 
-         - Sistema destrogiro. pulgar z, indice x, y medio. 
-          - ArtRot -> eje Z coincide con eje de giro. X e Y destroido.
-          - ArtPris -> SRi == SRi-1
-          - Xi-1 Perpendicular a Zi-1
-          - Xi Perpendicular Zi-1
-
+    - Sistema destrogiro. pulgar z, indice x, y medio. 
+    - ArtRot -> eje Z coincide con eje de giro. X e Y destroido.
+    - ArtPris -> SRi == SRi-1 Ugual que el sistema de corrdenadas anterior es recomendable
+    - Xi-1 Perpendicular a Zi-1
+    - Xi Perpendicular Zi-1
 3) Aplicare tabla de D-H
 
 |      |   1 |   2  |
@@ -39,9 +38,9 @@ Matrices T
 Manipulador 2
 
 |     | 1   |   2   |   3 |
-|-----|-----|-------|------|
+|-----|-----|-------|-----|
 |  d  | 5   |   0   |   0 |
-|  θ  |+θ1  |  0    |  +θ3|
+|  θ  |+θ1  |   0   |  +θ3|
 |   a | 0   |  l2   |   2 |
 |  α  | 0   |  pi/2 |   0 |  
 
