@@ -58,12 +58,26 @@ def cin_dir(th,a):
     o.append([tmp[0],tmp[1]])
   return o
 
+# Devuelve True si la articulación 'i' es de revolución
+def es_de_revolucion(theta):
+    # Si theta es diferente de cero, la articulación es de revolución
+    return theta != 0
+
+def angulo_incluido(angulo):
+    # Si el ángulo es mayor que 180º, se resta 360º
+    if angulo < 0:
+        angulo += 2*pi
+    else:
+        angulo = angulo % (2*pi)
+    return angulo
+
+
 # ******************************************************************************
 # Cálculo de la cinemática inversa de forma iterativa por el método CCD
 
 # valores articulares arbitrarios para la cinemática directa inicial
-th=[0.,0.,0.]
-a =[5.,5.,5.]
+th=[radians(360), 0, radians(360)]  # ángulos en radianes, 0 para la articulación prismática
+a =[5., 5., 5.]  # longitudes, la longitud de la articulación prismática se actualizará durante el cálculo de la cinemática inversa
 L = sum(a) # variable para representación gráfica
 EPSILON = .01
 
@@ -85,31 +99,35 @@ iteracion = 1
 while (dist > EPSILON and abs(prev-dist) > EPSILON/100.):
   prev = dist
   O=[cin_dir(th,a)]
-  # Para cada combinación de articulaciones:
   for i in range(len(th)):
       # cálculo de la cinemática inversa empezando por la última articulación
-      # Calculate the vectors
-      V1 = [O[i][len(th)][0] - O[i][len(th) - i - 1][0], O[i][len(th)][1] - O[i][len(th) -i -1][1]]
-      V2 = [objetivo[0] - O[i][len(th) - i - 1][0], objetivo[1] - O[i][len(th) - i - 1][1]]
-      # Calculate the angle between V1 and V2
-      alfa1 = atan2(V2[1], V2[0])
-      alfa2 = atan2(V1[1], V1[0])
-      # Check if the angle is between 0 and 2pi
-      if (th[len(th) - i - 1] < 0):
-        th[len(th) - i - 1] = 2*pi + th[len(th) - i - 1]
+      if es_de_revolucion(th[i]):
+          # Solo realiza cálculos si la articulación es de revolución
+          # Calculate the vectors
+          V1 = [O[i][len(th)][0] - O[i][len(th) - i - 1][0], O[i][len(th)][1] - O[i][len(th) -i -1][1]]
+          V2 = [objetivo[0] - O[i][len(th) - i - 1][0], objetivo[1] - O[i][len(th) - i - 1][1]]
+          # Calculate the angle between V1 and V2
+          alfa1 = atan2(V2[1], V2[0])
+          alfa2 = atan2(V1[1], V1[0])
+          # Check if the angle is between 0 and 2pi
+          th[len(th) - i - 1] = angulo_incluido(th[len(th) - i - 1])
+          # Calculate the new angle
+          newAngle = th[len(th) - i - 1] + alfa1 - alfa2
+          # Check if the angle is between 0 and 2pi
+          th[len(th) - i - 1] = angulo_incluido(newAngle)
+          # Update the angle
+          th[len(th) - i - 1] = newAngle
       else:
-        th[len(th) - i - 1] = th[len(th) - i - 1] % (2*pi)
-      # Calculate the new angle
-      newAngle = th[len(th) - i - 1] + alfa1 - alfa2
-      # Check if the angle is between 0 and 2pi
-      if (newAngle < 0):
-        newAngle = 2*pi + newAngle
-      else:
-        newAngle = newAngle % (2*pi)
-      # Update the angle
-      th[len(th) - i - 1] = newAngle
+          # Calcula el vector de la posición actual a la posición objetivo
+          vector = np.subtract(O[i][-1], objetivo)
+          # Calcula la norma (longitud) del vector manualmente
+          dist_prismatica = np.sqrt(np.sum(np.square(vector)))
+          # Actualiza a con la distancia prismática
+          a[len(a) - i - 1] = dist_prismatica
 
-      O.append(cin_dir(th,a))
+      O.append(cin_dir(th, a))
+
+
 
   dist = np.linalg.norm(np.subtract(objetivo,O[-1][-1]))
   print ("\n- Iteracion " + str(iteracion) + ':')
