@@ -99,7 +99,7 @@ if len(sys.argv) != nvar+1:
 p=[float(i) for i in sys.argv[1:nvar+1]]
 
 # Parámetros D-H:
-#        1    2
+#        1    2  
 d  = [   0,   0]
 th = [p[0],p[1]]
 a  = [  10,   5]

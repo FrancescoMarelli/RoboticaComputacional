@@ -103,7 +103,7 @@ p=[float(i) for i in sys.argv[1:nvar+2]] #Almacena valor articulaciones
 d  = [   5,     0,     0]  
 th = [p[0],     0,  p[2]]
 a  = [   0,   p[1],    2]
-al = [   0,     90,     0]
+al = [   0,     90,    0]
 
 # Orígenes para cada articulación
 o00=[0,0,0,1]
@@ -115,13 +115,13 @@ o33=[0,0,0,1]
 T01=matriz_T(d[0],th[0],a[0],al[0])
 T12=matriz_T(d[1],th[1],a[1],al[1])
 T23=matriz_T(d[2],th[2],a[2],al[2])
-T02=np.dot(T01,T12)
-T03=np.dot(T02,T23)
+T02=np.dot(T01,T12) # T01*T12
+T03=np.dot(T02,T23) # T01*T12*T23
 
 # Transformación de cada articulación
 o10 =np.dot(T01, o11).tolist()
 o20 =np.dot(T02, o22).tolist()
-o30 =np.dot(T03, o33).tolist()
+o30 =np.dot(T03, o33).tolist() # o30 = T01*T12*T23*o33
 
 # Mostrar resultado de la cinemática directa
 muestra_origenes([o00,o10,o20,o30])
