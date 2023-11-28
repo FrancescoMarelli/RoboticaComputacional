@@ -59,6 +59,11 @@ def cin_dir(th,a):
     o.append([tmp[0],tmp[1]])
   return o
 
+# ******************************************************************************
+#
+#  Funciones implementadas para la práctica de CCD
+#
+##
 def acotaAngulo(angulo):
     # Se normaliza el ángulo para que esté entre 0 y 360
     if angulo < 0:
@@ -76,58 +81,61 @@ def getCoordenadas(file):
 
 def getArticulaciones(file):
     with open(file, 'r') as f:
-        articulations = []
+        articulaciones = []
         for line in f.readlines()[2:]:
             tokens = line.split() # separar por espacios
-            type = tokens[0] # tipo de articulación
-            if type != 'r' and type != 'p':
+            tipo = tokens[0] # tipo de articulación
+            if tipo != 'r' and tipo != 'p':
                 sys.exit('Error: la articulación tiene que ser de tipo p o r')
-            limits = [float(val) for val in tokens[1:]] # límites de la articulación
-            articulations.append({'type': type, 'limits': limits}) # añadir articulación a la lista
+            limite = [float(val) for val in tokens[1:]] # límites de la articulación
+            articulaciones.append({'tipo': tipo, 'limite': limite}) # añadir articulación a la lista
+        articulaciones.reverse()
 
-        articulations.reverse()
-
-    return articulations
+    return articulaciones
 
 def calculaAngulo(articulaciones, O, th, i, objetivo, acotaAngulo):
     # Calcular los vectores del último eslabon y del EF al punto objetivo
-    lastArt = [O[i][len(th)][0] - O[i][len(th) - i - 1][0], O[i][len(th)][1] - O[i][len(th) -i -1][1]]
+    ultimoEslabon = [O[i][len(th)][0] - O[i][len(th) - i - 1][0], O[i][len(th)][1] - O[i][len(th) -i -1][1]]
     EFtoPoint = [objetivo[0] - O[i][len(th) - i - 1][0], objetivo[1] - O[i][len(th) - i - 1][1]] 
+
     # Calcular los ángulos alfa1 y alfa2
     alfa1 = atan2(EFtoPoint[1], EFtoPoint[0])
-    alfa2 = atan2(lastArt[1], lastArt[0])
+    alfa2 = atan2(ultimoEslabon[1], ultimoEslabon[0])
 
     th[len(th) - i - 1] = acotaAngulo(th[len(th) - i - 1])
     # Calcular el nuevo ángulo de la articulación
     nuevoAngulo = th[len(th) - i - 1] + alfa1 - alfa2
     nuevoAngulo = acotaAngulo(nuevoAngulo)
 
+    limiteInferior = articulaciones[i]['limite'][0]
+    limiteSuperior = articulaciones[i]['limite'][1]
     # Comprobar que el nuevo ángulo está dentro de los límites
-    if articulaciones[i]['limits'][0] <= nuevoAngulo <= articulaciones[i]['limits'][1]:
+    if  limiteInferior <= nuevoAngulo <=  limiteSuperior:
         th[len(th) - i - 1] = nuevoAngulo
-    elif nuevoAngulo < articulaciones[i]['limits'][0]:
-        th[len(th) - i - 1] = articulaciones[i]['limits'][0]
+    elif nuevoAngulo <  limiteInferior:
+        th[len(th) - i - 1] =  limiteInferior
     else:
-        th[len(th) - i - 1] = articulaciones[i]['limits'][1]
+        th[len(th) - i - 1] = limiteSuperior
     
     return th
 
 def calculaDistancia(articulaciones, O, th, a, i, objetivo):
-    w = sum(th[:i])
-    vectorW = [cos(w), sin(w)]
-    vectorP = [objetivo[0] - O[i][len(th) - i - 1][0], objetivo[1] - O[i][len(th) - i - 1][1]]
-    distancia = np.dot(vectorW, vectorP) + a[len(th) - i - 2]
+    w = sum(th[:i]) # (orientación acumulada i-esima)
+    vectorW = [cos(w), sin(w)] # vector unitario de orientación
+    vectorEFObj = [objetivo[0] - O[i][len(th) - i - 1][0], objetivo[1] - O[i][len(th) - i - 1][1]] # vector desplazamiento del EF al objetivo
+    distancia = np.dot(vectorW, vectorEFObj) + a[len(th) - i - 2]
 
-    # distancia minimizada
-    if distancia > articulaciones[i]['limits'][0] and distancia < articulaciones[i]['limits'][1]:
+    lmitInferior = articulaciones[i]['limite'][0]
+    lmitSuperior = articulaciones[i]['limite'][1]
+    # distancia normalizada entre los límites de la articulación
+    if distancia > lmitInferior and distancia < lmitSuperior:
         a[len(th) - i - 1] = distancia
-    elif distancia >= articulaciones[i]['limits'][1]:
-        a[len(th) - i - 1] = articulaciones[i]['limits'][1]
+    elif distancia >= lmitSuperior:
+        a[len(th) - i - 1] = lmitSuperior
     else:
-        a[len(th) - i - 1] = articulaciones[i]['limits'][0]
+        a[len(th) - i - 1] = lmitInferior
     
     return a
-
 
 # ******************************************************************************
 # control de errores en fichero de entrada
@@ -141,7 +149,7 @@ elif len(sys.argv) == 2:
         sys.exit("Error: El archivo " + filename + " no existe en el directorio actual.")
 
 # Cálculo de la cinemática inversa de forma iterativa por el método CCD
-# introducción del punto para la cinemática inversa
+# Lectura de los datos del problema
 articulaciones = getArticulaciones(sys.argv[1])
 objetivo=getCoordenadas(sys.argv[1])
 
@@ -167,7 +175,7 @@ while (dist > EPSILON and abs(prev-dist) > EPSILON/100.):
   O=[cin_dir(th,a)]
   for i in range(len(th)):
       # cálculo de la cinemática inversa empezando por la última articulación 
-      if articulaciones[i]['type'] == 'r': # rotacional
+      if articulaciones[i]['tipo'] == 'r': # rotacional
         # Calcular el nuevo ángulo de la articulación y devuelve lista de ángulos actualizados
         th = calculaAngulo(articulaciones, O, th, i, objetivo, acotaAngulo)
 
