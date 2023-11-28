@@ -11,6 +11,7 @@ from math import *
 import numpy as np
 import matplotlib.pyplot as plt
 import colorsys as cs
+import os # Extra: Importar la libreria OS para leer el fichero
 
 # ******************************************************************************
 # Declaración de funciones
@@ -25,18 +26,18 @@ def muestra_origenes(O,final=0):
 
 def muestra_robot(O,obj):
   # Muestra el robot graficamente
-  plt.figure()
+  plt.grid(True)
   plt.xlim(-L,L)
   plt.ylim(-L,L)
   T = [np.array(o).T.tolist() for o in O]
   for i in range(len(T)):
     plt.plot(T[i][0], T[i][1], '-o', color=cs.hsv_to_rgb(i/float(len(T)),1,1))
   plt.plot(obj[0], obj[1], '*')
-  plt.pause(0.0001)
   plt.show()
+  plt.pause(0.1)  # Para que se vea la animación
+  plt.clf() # Limpia la pantalla
+
   
-#  input()
-  plt.close()
 
 def matriz_T(d,th,a,al):
   # Calcula la matriz T (ángulos de entrada en grados)
@@ -58,35 +59,100 @@ def cin_dir(th,a):
     o.append([tmp[0],tmp[1]])
   return o
 
-# Devuelve True si la articulación 'i' es de revolución
-def es_de_revolucion(theta):
-    # Si theta es diferente de cero, la articulación es de revolución
-    return theta != 0
-
-def angulo_incluido(angulo):
-    # Si el ángulo es mayor que 180º, se resta 360º
+def acotaAngulo(angulo):
+    # Se normaliza el ángulo para que esté entre 0 y 360
     if angulo < 0:
-        angulo += 2*pi
+        angulo += 360
     else:
-        angulo = angulo % (2*pi)
+        angulo = angulo % (360)
     return angulo
+
+def getCoordenadas(file):
+    # Se obtienen las coordenadas del objetivo (primeras dos líneas del fichero)
+    with open(file, 'r') as f:
+        x = float(f.readline().split()[1])
+        y = float(f.readline().split()[1])
+    return x, y
+
+def getArticulaciones(file):
+    with open(file, 'r') as f:
+        articulations = []
+        for line in f.readlines()[2:]:
+            tokens = line.split() # separar por espacios
+            type = tokens[0] # tipo de articulación
+            if type != 'r' and type != 'p':
+                sys.exit('Error: la articulación tiene que ser de tipo p o r')
+            limits = [float(val) for val in tokens[1:]] # límites de la articulación
+            articulations.append({'type': type, 'limits': limits}) # añadir articulación a la lista
+
+        articulations.reverse()
+
+    return articulations
+
+def calculaAngulo(articulaciones, O, th, i, objetivo, acotaAngulo):
+    # Calcular los vectores del último eslabon y del EF al punto objetivo
+    lastArt = [O[i][len(th)][0] - O[i][len(th) - i - 1][0], O[i][len(th)][1] - O[i][len(th) -i -1][1]]
+    EFtoPoint = [objetivo[0] - O[i][len(th) - i - 1][0], objetivo[1] - O[i][len(th) - i - 1][1]] 
+    # Calcular los ángulos alfa1 y alfa2
+    alfa1 = atan2(EFtoPoint[1], EFtoPoint[0])
+    alfa2 = atan2(lastArt[1], lastArt[0])
+
+    th[len(th) - i - 1] = acotaAngulo(th[len(th) - i - 1])
+    # Calcular el nuevo ángulo de la articulación
+    nuevoAngulo = th[len(th) - i - 1] + alfa1 - alfa2
+    nuevoAngulo = acotaAngulo(nuevoAngulo)
+
+    # Comprobar que el nuevo ángulo está dentro de los límites
+    if articulaciones[i]['limits'][0] <= nuevoAngulo <= articulaciones[i]['limits'][1]:
+        th[len(th) - i - 1] = nuevoAngulo
+    elif nuevoAngulo < articulaciones[i]['limits'][0]:
+        th[len(th) - i - 1] = articulaciones[i]['limits'][0]
+    else:
+        th[len(th) - i - 1] = articulaciones[i]['limits'][1]
+    
+    return th
+
+def calculaDistancia(articulaciones, O, th, a, i, objetivo):
+    w = sum(th[:i])
+    vectorW = [cos(w), sin(w)]
+    vectorP = [objetivo[0] - O[i][len(th) - i - 1][0], objetivo[1] - O[i][len(th) - i - 1][1]]
+    distancia = np.dot(vectorW, vectorP) + a[len(th) - i - 2]
+
+    # distancia minimizada
+    if distancia > articulaciones[i]['limits'][0] and distancia < articulaciones[i]['limits'][1]:
+        a[len(th) - i - 1] = distancia
+    elif distancia >= articulaciones[i]['limits'][1]:
+        a[len(th) - i - 1] = articulaciones[i]['limits'][1]
+    else:
+        a[len(th) - i - 1] = articulaciones[i]['limits'][0]
+    
+    return a
 
 
 # ******************************************************************************
+# control de errores en fichero de entrada
+if len(sys.argv) != 2:
+  sys.exit("python " + sys.argv[0] + " archivo")
+elif len(sys.argv) == 2 and sys.argv[1] == "-h":
+  sys.exit("python " + sys.argv[0] + " archivo")
+elif len(sys.argv) == 2:
+    filename = sys.argv[1]
+    if not os.path.isfile(filename):
+        sys.exit("Error: El archivo " + filename + " no existe en el directorio actual.")
+
 # Cálculo de la cinemática inversa de forma iterativa por el método CCD
-
-# valores articulares arbitrarios para la cinemática directa inicial
-th=[radians(360), 0, radians(360)]  # ángulos en radianes, 0 para la articulación prismática
-a =[5., 5., 5.]  # longitudes, la longitud de la articulación prismática se actualizará durante el cálculo de la cinemática inversa
-L = sum(a) # variable para representación gráfica
-EPSILON = .01
-
-#plt.ion() # modo interactivo
-
 # introducción del punto para la cinemática inversa
-if len(sys.argv) != 3:
-  sys.exit("python " + sys.argv[0] + " x y")
-objetivo=[float(i) for i in sys.argv[1:]]
+articulaciones = getArticulaciones(sys.argv[1])
+objetivo=getCoordenadas(sys.argv[1])
+
+th = [0. for i in range(len(articulaciones))] # valores articulares arbitrarios para la cinemática directa inicial
+a = [5. for i in range(len(articulaciones))] # valores articulares arbitrarios para la cinemática directa inicial
+
+L = sum(a) # variable para representación gráfica
+EPSILON = .1 # umbral de convergencia
+plt.ion() # modo interactivo
+
+
 O=cin_dir(th,a)
 #O=zeros(len(th)+1) # Reservamos estructura en memoria
  # Calculamos la posicion inicial
@@ -100,30 +166,13 @@ while (dist > EPSILON and abs(prev-dist) > EPSILON/100.):
   prev = dist
   O=[cin_dir(th,a)]
   for i in range(len(th)):
-      # cálculo de la cinemática inversa empezando por la última articulación
-      if es_de_revolucion(th[i]):
-          # Solo realiza cálculos si la articulación es de revolución
-          # Calculate the vectors
-          V1 = [O[i][len(th)][0] - O[i][len(th) - i - 1][0], O[i][len(th)][1] - O[i][len(th) -i -1][1]]
-          V2 = [objetivo[0] - O[i][len(th) - i - 1][0], objetivo[1] - O[i][len(th) - i - 1][1]]
-          # Calculate the angle between V1 and V2
-          alfa1 = atan2(V2[1], V2[0])
-          alfa2 = atan2(V1[1], V1[0])
-          # Check if the angle is between 0 and 2pi
-          th[len(th) - i - 1] = angulo_incluido(th[len(th) - i - 1])
-          # Calculate the new angle
-          newAngle = th[len(th) - i - 1] + alfa1 - alfa2
-          # Check if the angle is between 0 and 2pi
-          th[len(th) - i - 1] = angulo_incluido(newAngle)
-          # Update the angle
-          th[len(th) - i - 1] = newAngle
-      else:
-          # Calcula el vector de la posición actual a la posición objetivo
-          vector = np.subtract(O[i][-1], objetivo)
-          # Calcula la norma (longitud) del vector manualmente
-          dist_prismatica = np.sqrt(np.sum(np.square(vector)))
-          # Actualiza a con la distancia prismática
-          a[len(a) - i - 1] = dist_prismatica
+      # cálculo de la cinemática inversa empezando por la última articulación 
+      if articulaciones[i]['type'] == 'r': # rotacional
+        # Calcular el nuevo ángulo de la articulación y devuelve lista de ángulos actualizados
+        th = calculaAngulo(articulaciones, O, th, i, objetivo, acotaAngulo)
+
+      else: # prismatico
+        a = calculaDistancia(articulaciones, O, th, a, i, objetivo)
 
       O.append(cin_dir(th, a))
 
