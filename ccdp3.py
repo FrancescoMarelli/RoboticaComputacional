@@ -103,12 +103,14 @@ def calculaAngulo(articulaciones, O, th, i, objetivo, acotaAngulo):
     alfa2 = atan2(ultimoEslabon[1], ultimoEslabon[0])
 
     th[len(th) - i - 1] = acotaAngulo(th[len(th) - i - 1])
+    
     # Calcular el nuevo ángulo de la articulación
     nuevoAngulo = th[len(th) - i - 1] + alfa1 - alfa2
     nuevoAngulo = acotaAngulo(nuevoAngulo)
 
     limiteInferior = articulaciones[i]['limite'][0]
     limiteSuperior = articulaciones[i]['limite'][1]
+
     # Comprobar que el nuevo ángulo está dentro de los límites
     if  limiteInferior <= nuevoAngulo <=  limiteSuperior:
         th[len(th) - i - 1] = nuevoAngulo
@@ -156,7 +158,10 @@ objetivo=getCoordenadas(sys.argv[1])
 th = [0. for i in range(len(articulaciones))] # valores articulares arbitrarios para la cinemática directa inicial
 a = [5. for i in range(len(articulaciones))] # valores articulares arbitrarios para la cinemática directa inicial
 
-L = sum(a) # variable para representación gráfica
+# cambiar paramtro para que se vea mejor el robot
+parGrafic = 10
+szGrid = parGrafic * max(a) # tamaño del grid
+L = max(sum(a), szGrid) # variable para representación gráfica
 EPSILON = .1 # umbral de convergencia
 plt.ion() # modo interactivo
 
