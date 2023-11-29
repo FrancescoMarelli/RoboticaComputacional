@@ -82,16 +82,22 @@ def getCoordenadas(file):
 def getArticulaciones(file):
     with open(file, 'r') as f:
         articulaciones = []
+        th = []
+        a = []
         for line in f.readlines()[2:]:
             tokens = line.split() # separar por espacios
             tipo = tokens[0] # tipo de articulación
             if tipo != 'r' and tipo != 'p':
                 sys.exit('Error: la articulación tiene que ser de tipo p o r')
-            limite = [float(val) for val in tokens[1:]] # límites de la articulación
+            limite = [float(val) for val in tokens[1:3]] # límites de la articulación
+            angulo_inicial = float(tokens[3]) # ángulo inicial de la articulación
+            length = float(tokens[4]) # longitud de la articulación
+            th.append(angulo_inicial) # añadir ángulo inicial a la lista
+            a.append(length)
             articulaciones.append({'tipo': tipo, 'limite': limite}) # añadir articulación a la lista
         articulaciones.reverse()
 
-    return articulaciones
+    return articulaciones, th, a
 
 def calculaAngulo(articulaciones, O, th, i, objetivo, acotaAngulo):
     # Calcular los vectores del último eslabon y del EF al punto objetivo
@@ -101,8 +107,6 @@ def calculaAngulo(articulaciones, O, th, i, objetivo, acotaAngulo):
     # Calcular los ángulos alfa1 y alfa2
     alfa1 = atan2(EFtoPoint[1], EFtoPoint[0])
     alfa2 = atan2(ultimoEslabon[1], ultimoEslabon[0])
-
-    th[len(th) - i - 1] = acotaAngulo(th[len(th) - i - 1])
     
     # Calcular el nuevo ángulo de la articulación
     nuevoAngulo = th[len(th) - i - 1] + alfa1 - alfa2
@@ -155,11 +159,18 @@ elif len(sys.argv) == 2:
 articulaciones = getArticulaciones(sys.argv[1])
 objetivo=getCoordenadas(sys.argv[1])
 
-th = [0. for i in range(len(articulaciones))] # valores articulares arbitrarios para la cinemática directa inicial
-a = [5. for i in range(len(articulaciones))] # valores articulares arbitrarios para la cinemática directa inicial
+# Inicialización de th y a
+th = [0. for i in range(len(articulaciones))]
+a = [5. for i in range(len(articulaciones))]
+
+# Lectura de los datos del problema
+datos_articulaciones = getArticulaciones(sys.argv[1])
+articulaciones = datos_articulaciones[0]
+th = datos_articulaciones[1] if len(datos_articulaciones[1]) > 0 else th
+a = datos_articulaciones[2] if len(datos_articulaciones[2]) > 0 else a
 
 # cambiar paramtro para que se vea mejor el robot
-parGrafic = 10
+parGrafic = 5
 szGrid = parGrafic * max(a) # tamaño del grid
 L = max(sum(a), szGrid) # variable para representación gráfica
 EPSILON = .1 # umbral de convergencia
@@ -183,13 +194,10 @@ while (dist > EPSILON and abs(prev-dist) > EPSILON/100.):
       if articulaciones[i]['tipo'] == 'r': # rotacional
         # Calcular el nuevo ángulo de la articulación y devuelve lista de ángulos actualizados
         th = calculaAngulo(articulaciones, O, th, i, objetivo, acotaAngulo)
-
       else: # prismatico
         a = calculaDistancia(articulaciones, O, th, a, i, objetivo)
 
       O.append(cin_dir(th, a))
-
-
 
   dist = np.linalg.norm(np.subtract(objetivo,O[-1][-1]))
   print ("\n- Iteracion " + str(iteracion) + ':')
