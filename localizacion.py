@@ -19,7 +19,7 @@ from datetime import datetime
 # Declaraci�n de funciones
 
 def distancia(a,b):
-  # Distancia entre dos puntos (admite poses)
+  # Distancia Euclidiana entre dos puntos (admite poses)
   return np.linalg.norm(np.subtract(a[:2],b[:2]))
 
 def angulo_rel(pose,p):
@@ -53,53 +53,58 @@ def mostrar(objetivos,ideal,trayectoria):
   objT   = np.array(objetivos).T.tolist()
   plt.plot(objT[0],objT[1],'-.o')
   plt.show()
-  input()
+  #input()
   plt.clf()
 
-def localizacion(balizas, real, ideal, centro, radio, mostrar=0):
-    # Inicializar la imagen y el incremento
-    imagen = []
-    incremento = 1  # Ajusta este valor según sea necesario
+def localizacion(balizas, real, ideal, radio, mostrar=False):
+  # Buscar la localizaci�n m�s probable del robot, a partir de su sistema
+  # sensorial, dentro de una regi�n cuadrada de centro "centro" y lado "2*radio".
+  centro = real.pose() 
+  old_prob = 1e100
+  orient_ideal = ideal.pose()[2]  # orientacion del robot ideal
+  balizas_real = real.sense(balizas) # sensores del robot real de las balizas
+  pose_t = [] # pose temporal
 
-    # Inicializar la probabilidad anterior a un número muy grande
-    probabilidad_anterior = float('inf')
+  # Crear imagen con probabilidad en cada celda (1)
+  sizeImage = 50 # tamaño de la imagen
+  imagen = np.ones((sizeImage,sizeImage))*1e10 # imagen de unos
 
-    # Iterar sobre el rango de -radio a +radio
-    for i in range(-radio, radio+1, incremento):
-        for j in range(-radio, radio+1, incremento):
-            # Colocar al robot ideal en (centroX + i, centroY + j)
-            centroX, centroY = centro
-            robot_ideal = (centroX + i, centroY + j)  # Asume que la orientación no es necesaria aquí
+  # Calcular la probabilidad de cada celda de la imagen
+  for i in np.arange(sizeImage):
+    for j in np.arange(sizeImage):
+      nueva_x = centro[0]+ (i - radio) * (2 * radio / sizeImage)# nueva posicion x escalada
+      nueva_y = centro[1]+ (j - radio) * (2 * radio / sizeImage) # nueva posicion y escalada
+      new_pose = [nueva_x, nueva_y, orient_ideal] # para la probabilidad de la orientacion
+      
+      ideal.set(new_pose[0],new_pose[1],new_pose[2])  # se asigna la nueva pose al robot ideal
+      imagen[i][j] = ideal.measurement_prob(balizas_real, balizas) # probabilidad de la orientacion
 
-            # Calcular la probabilidad
-            # Aquí necesitarás agregar tu propia lógica para calcular la probabilidad
-            probabilidad = real.measurement_prob(ideal.sense(balizas), balizas)
-            # Si la probabilidad es menor que la probabilidad anterior, actualizar la mejor pose
-            if probabilidad < probabilidad_anterior:
-                mejor_pose = robot_ideal
-                probabilidad_anterior = probabilidad
+      # Se busca la pose mas probable
+      if imagen[i][j] < old_prob: 
+        old_prob = imagen[i][j] # se actualiza el peso
+        pose_t = [nueva_x, nueva_y, orient_ideal] # se actualiza la pose temporal
 
-            # Agregar la probabilidad a la imagen
-            imagen.append(probabilidad)
+  # Se asigna la pose mas probable al robot
+  ideal.set(pose_t[0],pose_t[1],pose_t[2])
 
-    # Si mostrar es 1, imprimir la imagen
-    if mostrar:
-      #plt.ion() # modo interactivo
-      plt.xlim(centro[0]-radio,centro[0]+radio)
-      plt.ylim(centro[1]-radio,centro[1]+radio)
-      imagen.reverse()
-      plt.imshow(imagen,extent=[centro[0]-radio,centro[0]+radio,\
-                                centro[1]-radio,centro[1]+radio])
-      balT = np.array(balizas).T.tolist();
-      plt.plot(balT[0],balT[1],'or',ms=10)
-      plt.plot(ideal.x,ideal.y,'D',c='#ff00ff',ms=10,mew=2)
-      plt.plot(real.x, real.y, 'D',c='#00ff00',ms=10,mew=2)
-      plt.show()
-      #input()
-      plt.clf()
+  # Si mostrar es 1, imprimir la imagen
+  if mostrar:
+    #plt.ion() # modo interactivo
+    plt.xlim(centro[0]-radio,centro[0]+radio)
+    plt.ylim(centro[1]-radio,centro[1]+radio)
+    #imagen.reverse()
+    plt.imshow(imagen,extent=[centro[0]-radio,centro[0]+radio,\
+                              centro[1]-radio,centro[1]+radio])
+    balT = np.array(balizas).T.tolist()
+    plt.plot(balT[0],balT[1],'or',ms=10)
+    plt.plot(ideal.x,ideal.y,'D',c='#ff00ff',ms=10,mew=2)
+    plt.plot(real.x, real.y, 'D',c='#00ff00',ms=10,mew=2)
+    plt.show()
+    #input()
+    plt.clf()
 
-      # Devolver la imagen
-      return imagen
+    # Devolver la imagen
+    return imagen
 
 
 # ******************************************************************************
@@ -121,13 +126,14 @@ trayectorias = [
     [[2,4],[4,0],[0,0]],
     [[2,4],[2,0],[0,2],[4,2]],
     [[2+2*sin(.8*pi*i),2+2*cos(.8*pi*i)] for i in range(5)],
-    [[1,10]]
     ]
 
 # Definición de los puntos objetivo:
-if len(sys.argv)<2 or int(sys.argv[1])<0 or int(sys.argv[1])>=len(trayectorias):
-  sys.exit(sys.argv[0]+" <indice entre 0 y "+str(len(trayectorias)-1)+">")
+if len(sys.argv) < 4:
+    sys.exit(sys.argv[0] + " <indice entre 0 y " + str(len(trayectorias) - 1) + "> <umbral> <radio>")
 objetivos = trayectorias[int(sys.argv[1])]
+UMBRAL = float(sys.argv[2])
+RADIO = int(sys.argv[3])
 
 # Definici�n de constantes:
 EPSILON = .1                # Umbral de distancia
@@ -150,6 +156,11 @@ tiempo  = 0.
 espacio = 0.
 #random.seed(0)
 random.seed(datetime.now())
+cont = 0 # contador de relocalizaciones
+show = True # para mostrar solo una imagen de la relocalizacion
+UMBRAL = 0.2 # umbral de relocalizacion
+#localizacion(objetivos, real, ideal, RADIO, False)
+
 for punto in objetivos:
   while distancia(tray_ideal[-1],punto) > EPSILON and len(tray_ideal) <= 1000:
     pose = ideal.pose()
@@ -172,13 +183,13 @@ for punto in objetivos:
     tray_ideal.append(ideal.pose()) # almaceno nuevas poses del robot para representarlos en las graficas 
     tray_real.append(real.pose())
 
-    # comprobar si difieren posiciones de l real y ideal cada instante de tiempo o cada umbral cada x tiempo. 
-    # si la diferencia no es suficiente comparada al umbral localizo sino no es necesario
-    
-    # comprobar si difieren posiciones de l real y ideal cada instante de tiempo o cada umbral cada x tiempo. 
-    # si la diferencia no es suficiente comparada al umbral localizo sino no es necesario
-    if distancia(tray_ideal[-1],tray_real[-1]) > EPSILON:
-      localizacion(objetivos,real,ideal, tray_real[-1], 10, 1)
+    # comprobar si difieren posiciones de  real y ideal 
+    if ideal.measurement_prob(real.sense(objetivos),objetivos) > UMBRAL: 
+      print(f"Relocalización {cont}  ...")
+      cont += 1
+      localizacion(objetivos, real, ideal, RADIO, show)
+      show = False 
+
 
     espacio += v
     tiempo  += 1
