@@ -1,6 +1,6 @@
 # Practica 1
 
-# @correo Profe bfarinaj@ull.edu.es
+
 Manipulador 1
 
 1) Primero paso
